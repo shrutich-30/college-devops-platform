@@ -1,9 +1,8 @@
-name: Release Pipeline
+name: CI Pipeline
 
 on:
   push:
-    tags:
-      - "v*.*.*"
+    branches: [ "main" ]
 
 jobs:
   build:
@@ -13,34 +12,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          python-version: "3.10"
 
-      - name: Set version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
-
-      - name: Build Docker image
+      - name: Install dependencies
         run: |
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/college-portal:${{ env.VERSION }} .
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/college-portal:${{ github.sha }} .
+          pip install -r requirements.txt
 
-      - name: Push Docker image
+      - name: Run basic test (app import check)
         run: |
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/college-portal:${{ env.VERSION }}
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/college-portal:${{ github.sha }}
-
-      - name: Generate changelog
-        run: |
-          git log $(git describe --tags --abbrev=0 HEAD^)..HEAD --pretty=format:"- %s" > CHANGELOG.txt
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_name }}
-          name: Release ${{ github.ref_name }}
-          body_path: CHANGELOG.txt
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          python -c "import app; print('App imported successfully')"
