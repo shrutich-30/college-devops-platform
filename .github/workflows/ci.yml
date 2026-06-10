@@ -6,46 +6,41 @@ on:
       - "v*.*.*"
 
 jobs:
-  release:
+  build:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout code
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2. Docker login
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # 3. Get version
       - name: Set version
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
-      # 4. Build Docker image
-      - name: Build image
+      - name: Build Docker image
         run: |
           docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/college-portal:${{ env.VERSION }} .
           docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/college-portal:${{ github.sha }} .
 
-      # 5. Push Docker image
-      - name: Push image
+      - name: Push Docker image
         run: |
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/college-portal:${{ env.VERSION }}
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/college-portal:${{ github.sha }}
 
-      # 6. Generate changelog
-      - name: Changelog
+      - name: Generate changelog
         run: |
           git log $(git describe --tags --abbrev=0 HEAD^)..HEAD --pretty=format:"- %s" > CHANGELOG.txt
 
-      # 7. Create GitHub Release
-      - name: Release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}          body_path: CHANGELOG.txt
-          name: Release ${{ github.ref_name }}
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
           tag_name: ${{ github.ref_name }}
-
+          name: Release ${{ github.ref_name }}
+          body_path: CHANGELOG.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
